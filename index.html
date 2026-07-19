@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PrimePlay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Cabeçalho -->
+  <header class="topbar">
+    <div class="topbar__left">
+      <a href="#inicio" class="logo">
+        <span class="logo__prime">prime</span><span class="logo__play">play</span>
+      </a>
+      <nav class="nav" id="nav"></nav>
+    </div>
+    <div class="topbar__right">
+      <input type="search" id="searchInput" class="search" placeholder="Buscar títulos..." />
+      <button class="btn btn--ghost" id="importBtn" title="Importar catálogo">Importar</button>
+      <button class="btn btn--ghost" id="exportBtn" title="Exportar catálogo">Exportar</button>
+      <button class="btn btn--primary" id="addBtn">+ Adicionar</button>
+    </div>
+  </header>
+
+  <!-- Destaque -->
+  <section class="hero" id="hero">
+    <div class="hero__bg" id="heroBg"></div>
+    <div class="hero__overlay"></div>
+    <div class="hero__content" id="heroContent">
+      <h1 class="hero__title">Seu catálogo, do seu jeito</h1>
+      <p class="hero__desc">Adicione seus filmes, séries, desenhos e terror. O catálogo começa vazio — clique em <strong>+ Adicionar</strong> para incluir seus títulos.</p>
+      <div class="hero__actions">
+        <button class="btn btn--primary btn--lg" id="heroAddBtn">+ Adicionar título</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Prateleiras -->
+  <main class="content" id="content"></main>
+
+  <!-- Estado vazio -->
+  <div class="empty" id="empty" hidden>
+    <div class="empty__icon">🎬</div>
+    <h2>Nenhum título ainda</h2>
+    <p>Seu catálogo está vazio. Clique em <strong>+ Adicionar</strong> para incluir filmes, séries, desenhos ou terror.</p>
+    <button class="btn btn--primary btn--lg" id="emptyAddBtn">+ Adicionar título</button>
+  </div>
+
+  <footer class="footer">
+    <p>PrimePlay — catálogo pessoal. Os títulos são adicionados e armazenados apenas neste navegador.</p>
+  </footer>
+
+  <!-- Modal: player -->
+  <div class="modal" id="playerModal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__box modal__box--player">
+      <button class="modal__close" data-close aria-label="Fechar">&times;</button>
+      <div class="player" id="player"></div>
+      <div class="player__meta">
+        <h2 id="playerTitle"></h2>
+        <p id="playerDesc"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: adicionar/editar -->
+  <div class="modal" id="formModal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__box">
+      <button class="modal__close" data-close aria-label="Fechar">&times;</button>
+      <h2 id="formTitle">Adicionar título</h2>
+      <form id="titleForm" class="form">
+        <input type="hidden" id="fId" />
+        <label>
+          Título*
+          <input type="text" id="fTitle" required placeholder="Ex.: O Poderoso Chefão" />
+        </label>
+        <label>
+          Categoria*
+          <select id="fCategory" required>
+            <option value="Filmes">Filmes</option>
+            <option value="Séries">Séries</option>
+            <option value="Desenhos">Desenhos</option>
+            <option value="Terror">Terror</option>
+          </select>
+        </label>
+        <label>
+          URL da capa (imagem)
+          <input type="url" id="fPoster" placeholder="https://.../capa.jpg" />
+        </label>
+        <label>
+          Link do vídeo (arquivo .mp4 ou link do YouTube)
+          <input type="url" id="fVideo" placeholder="https://... ou link do YouTube" />
+        </label>
+        <label>
+          Descrição
+          <textarea id="fDesc" rows="3" placeholder="Sinopse do título..."></textarea>
+        </label>
+        <div class="form__actions">
+          <button type="button" class="btn btn--ghost" id="deleteBtn" hidden>Excluir</button>
+          <button type="button" class="btn btn--ghost" data-close>Cancelar</button>
+          <button type="submit" class="btn btn--primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <input type="file" id="importFile" accept="application/json" hidden />
+
+  <script src="app.js"></script>
+</body>
+</html>
