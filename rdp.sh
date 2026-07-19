@@ -25,8 +25,23 @@ mkdir -p /root/dockercom
 cd /root/dockercom
 
 echo
+echo "=== 🔐 Menyiapkan kredensial Windows ==="
+# Jangan hardcode kredensial. Gunakan variabel lingkungan bila tersedia,
+# jika tidak, buat password acak yang kuat.
+WIN_USERNAME="${WIN_USERNAME:-MASTER}"
+if [ -z "${WIN_PASSWORD:-}" ]; then
+  WIN_PASSWORD="$(openssl rand -base64 18 2>/dev/null || tr -dc 'A-Za-z0-9!@#%_+=' < /dev/urandom | head -c 20)"
+  GENERATED_PASSWORD=1
+fi
+
+# Simpan storage di direktori khusus (bukan /tmp yang world-readable & mudah terhapus).
+STORAGE_DIR="/root/dockercom/windows-storage"
+mkdir -p "$STORAGE_DIR"
+chmod 700 "$STORAGE_DIR"
+
+echo
 echo "=== 🧾 Membuat file windows.yml ==="
-cat > windows.yml <<'EOF'
+cat > windows.yml <<EOF
 version: "3.9"
 services:
   windows:
@@ -34,8 +49,8 @@ services:
     container_name: windows
     environment:
       VERSION: "11"
-      USERNAME: "MASTER"
-      PASSWORD: "admin@123"
+      USERNAME: "${WIN_USERNAME}"
+      PASSWORD: "${WIN_PASSWORD}"
       RAM_SIZE: "7G"
       CPU_CORES: "4"
     devices:
@@ -48,15 +63,17 @@ services:
       - "3389:3389/tcp"
       - "3389:3389/udp"
     volumes:
-      - /tmp/windows-storage:/storage
+      - ${STORAGE_DIR}:/storage
     restart: always
     stop_grace_period: 2m
 
 EOF
+chmod 600 windows.yml
 
 echo
 echo "=== ✅ File windows.yml berhasil dibuat ==="
-cat windows.yml
+# Jangan cetak isi windows.yml karena memuat kredensial.
+grep -v -E 'PASSWORD|USERNAME' windows.yml
 
 echo
 echo "=== 🚀 Menjalankan Windows 11 container ==="
@@ -65,8 +82,22 @@ docker-compose -f windows.yml up -d
 echo
 echo "=== ☁️ Instalasi Cloudflare Tunnel ==="
 if [ ! -f "/usr/local/bin/cloudflared" ]; then
-  wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
-  chmod +x /usr/local/bin/cloudflared
+  CF_TMP="$(mktemp)"
+  wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O "$CF_TMP"
+  # Verifikasi integritas biner terhadap checksum resmi Cloudflare.
+  if wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.sha256 -O "$CF_TMP.sha256"; then
+    EXPECTED="$(awk '{print $1}' "$CF_TMP.sha256")"
+    ACTUAL="$(sha256sum "$CF_TMP" | awk '{print $1}')"
+    if [ -n "$EXPECTED" ] && [ "$EXPECTED" != "$ACTUAL" ]; then
+      echo "❌ Checksum cloudflared tidak cocok. Membatalkan."
+      rm -f "$CF_TMP" "$CF_TMP.sha256"
+      exit 1
+    fi
+  else
+    echo "⚠️ Tidak dapat mengunduh checksum cloudflared; melewati verifikasi."
+  fi
+  install -m 755 "$CF_TMP" /usr/local/bin/cloudflared
+  rm -f "$CF_TMP" "$CF_TMP.sha256"
 fi
 
 echo
@@ -100,8 +131,17 @@ else
 fi
 
 echo
-echo "🔑 Username: MASTER"
-echo "🔒 Password: admin@123"
+echo "🔑 Username: ${WIN_USERNAME}"
+if [ "${GENERATED_PASSWORD:-0}" = "1" ]; then
+  echo "🔒 Password (dibuat otomatis, SIMPAN sekarang): ${WIN_PASSWORD}"
+  echo "   ⚠️ Password ini hanya ditampilkan sekali di sini."
+else
+  echo "🔒 Password: (menggunakan nilai dari variabel WIN_PASSWORD)"
+fi
+echo
+echo "⚠️  PERINGATAN KEAMANAN: RDP & Web Console kini terekspos ke internet"
+echo "    publik melalui Cloudflare Tunnel tanpa autentikasi tambahan."
+echo "    Gunakan Cloudflare Access / firewall dan password kuat."
 echo
 echo "Untuk melihat status container:"
 echo "  docker ps"
