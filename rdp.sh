@@ -5,27 +5,66 @@
 
 set -e
 
-echo "=== 🔧 Menjalankan sebagai root ==="
+# ============================================
+# 🧰 Shared utilities
+# ============================================
+
+# Print a blank line followed by a "=== message ===" section header.
+section() {
+  echo
+  echo "=== $1 ==="
+}
+
+# Ensure the cloudflared binary is installed.
+install_cloudflared() {
+  if [ ! -f "/usr/local/bin/cloudflared" ]; then
+    wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
+    chmod +x /usr/local/bin/cloudflared
+  fi
+}
+
+# Start a cloudflared tunnel in the background.
+# $1 = target url, $2 = logfile
+start_tunnel() {
+  nohup cloudflared tunnel --url "$1" > "$2" 2>&1 &
+}
+
+# Extract the first matching cloudflare link from a log file.
+# $1 = grep pattern, $2 = logfile
+extract_link() {
+  grep -o "$1" "$2" | head -n 1
+}
+
+# Print a discovered link or a warning if it was not found.
+# $1 = link value, $2 = success label, $3 = warning message, $4 = logfile
+print_link() {
+  if [ -n "$1" ]; then
+    echo "$2"
+    echo "    $1"
+  else
+    echo "$3"
+    echo "    Cek log: tail -f $4"
+  fi
+}
+
+section "🔧 Menjalankan sebagai root"
 if [ "$EUID" -ne 0 ]; then
   echo "Script ini butuh akses root. Jalankan dengan: sudo bash install-windows11-cloudflare.sh"
   exit 1
 fi
 
-echo
-echo "=== 📦 Update & Install Docker Compose ==="
+section "📦 Update & Install Docker Compose"
 apt update -y
 apt install docker-compose -y
 
 systemctl enable docker
 systemctl start docker
 
-echo
-echo "=== 📂 Membuat direktori kerja dockercom ==="
+section "📂 Membuat direktori kerja dockercom"
 mkdir -p /root/dockercom
 cd /root/dockercom
 
-echo
-echo "=== 🧾 Membuat file windows.yml ==="
+section "🧾 Membuat file windows.yml"
 cat > windows.yml <<'EOF'
 version: "3.9"
 services:
@@ -54,50 +93,31 @@ services:
 
 EOF
 
-echo
-echo "=== ✅ File windows.yml berhasil dibuat ==="
+section "✅ File windows.yml berhasil dibuat"
 cat windows.yml
 
-echo
-echo "=== 🚀 Menjalankan Windows 11 container ==="
+section "🚀 Menjalankan Windows 11 container"
 docker-compose -f windows.yml up -d
 
-echo
-echo "=== ☁️ Instalasi Cloudflare Tunnel ==="
-if [ ! -f "/usr/local/bin/cloudflared" ]; then
-  wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared
-  chmod +x /usr/local/bin/cloudflared
-fi
+section "☁️ Instalasi Cloudflare Tunnel"
+install_cloudflared
 
-echo
-echo "=== 🌍 Membuat tunnel publik untuk akses web & RDP ==="
-nohup cloudflared tunnel --url http://localhost:8006 > /var/log/cloudflared_web.log 2>&1 &
-nohup cloudflared tunnel --url tcp://localhost:3389 > /var/log/cloudflared_rdp.log 2>&1 &
+section "🌍 Membuat tunnel publik untuk akses web & RDP"
+start_tunnel "http://localhost:8006" /var/log/cloudflared_web.log
+start_tunnel "tcp://localhost:3389" /var/log/cloudflared_rdp.log
 sleep 6
 
-CF_WEB=$(grep -o "https://[a-zA-Z0-9.-]*\.trycloudflare\.com" /var/log/cloudflared_web.log | head -n 1)
-CF_RDP=$(grep -o "tcp://[a-zA-Z0-9.-]*\.trycloudflare\.com:[0-9]*" /var/log/cloudflared_rdp.log | head -n 1)
+CF_WEB=$(extract_link "https://[a-zA-Z0-9.-]*\.trycloudflare\.com" /var/log/cloudflared_web.log)
+CF_RDP=$(extract_link "tcp://[a-zA-Z0-9.-]*\.trycloudflare\.com:[0-9]*" /var/log/cloudflared_rdp.log)
 
 echo
 echo "=============================================="
 echo "🎉 Instalasi Selesai!"
 echo
-if [ -n "$CF_WEB" ]; then
-  echo "🌍 Web Console (NoVNC / UI):"
-  echo "    ${CF_WEB}"
-else
-  echo "⚠️ Tidak menemukan link web Cloudflare (port 8006)"
-  echo "    Cek log: tail -f /var/log/cloudflared_web.log"
-fi
+print_link "$CF_WEB" "🌍 Web Console (NoVNC / UI):" "⚠️ Tidak menemukan link web Cloudflare (port 8006)" /var/log/cloudflared_web.log
 
-if [ -n "$CF_RDP" ]; then
-  echo
-  echo "🖥️  Remote Desktop (RDP) melalui Cloudflare:"
-  echo "    ${CF_RDP}"
-else
-  echo "⚠️ Tidak menemukan link RDP Cloudflare (port 3389)"
-  echo "    Cek log: tail -f /var/log/cloudflared_rdp.log"
-fi
+echo
+print_link "$CF_RDP" "🖥️  Remote Desktop (RDP) melalui Cloudflare:" "⚠️ Tidak menemukan link RDP Cloudflare (port 3389)" /var/log/cloudflared_rdp.log
 
 echo
 echo "🔑 Username: MASTER"
@@ -115,5 +135,5 @@ echo
 echo "Untuk melihat link Cloudflare:"
 echo "  grep 'trycloudflare' /var/log/cloudflared_*.log"
 echo
-echo "=== ✅ Windows 11 di Docker siap digunakan! ==="
+section "✅ Windows 11 di Docker siap digunakan!"
 echo "=============================================="
