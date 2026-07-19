@@ -1,59 +1,68 @@
 # PrimePlay 🎬
 
-Aplicativo web de catálogo de vídeos no estilo **Prime Video**, para organizar seus próprios **Filmes, Séries, Desenhos e Terror**.
+Aplicativo web de catálogo de vídeos no estilo **Prime Video**, para **Filmes, Séries, Desenhos e Terror**, com **contas de usuário** (Firebase).
 
-O catálogo começa **vazio** — só **você** adiciona os títulos. Os visitantes apenas assistem.
+- Ao abrir, aparece a tela de **Entrar / Criar conta**.
+- Qualquer usuário logado **assiste** aos títulos.
+- Somente **um e-mail administrador** (`brenolimacruz64@gmail.com`) pode **adicionar, editar e excluir**.
+- O catálogo fica salvo online no **Firestore** — todos veem os mesmos títulos na hora.
 
-## Dois modos
+## Configuração (uma vez)
 
-- **Visitante** (`https://seu-site/`): só vê e assiste os títulos publicados. Sem botões de adicionar/editar.
-- **Admin** (`https://seu-site/#admin`): pede uma senha; só aí aparecem os botões de adicionar, editar, excluir e **Publicar**.
-
-### Senha do admin
-
-A senha fica no início do arquivo `app.js`:
+### 1. Chaves do Firebase
+Preencha `firebase-config.js` com o bloco `firebaseConfig` do console do Firebase
+(⚙️ Configurações do projeto → Seus apps → Config):
 
 ```js
-const ADMIN_PASSWORD = "prime123"; // troque pela senha que você quiser
+export const firebaseConfig = {
+  apiKey: "AIza...",
+  authDomain: "SEU_PROJETO.firebaseapp.com",
+  projectId: "SEU_PROJETO",
+  storageBucket: "SEU_PROJETO.appspot.com",
+  messagingSenderId: "...",
+  appId: "1:...:web:...",
+};
+
+export const ADMIN_EMAIL = "brenolimacruz64@gmail.com";
 ```
 
-> Por ser um site estático, essa senha só **esconde** os controles de edição — ela não é uma barreira de segurança forte. A proteção real é que **só você** publica o `data.json` no repositório; ninguém consegue alterar o catálogo que os visitantes veem.
+### 2. Ativar login
+No console do Firebase: **Authentication → Sign-in method** → ative **E-mail/senha** e **Google**.
+Em **Authentication → Settings → Domínios autorizados**, adicione `brenolimacruz64-lab.github.io`.
 
-## Como adicionar títulos (modo admin)
+### 3. Regras de segurança do Firestore
+Em **Firestore Database → Regras**, cole o conteúdo de [`firestore.rules`](firestore.rules) e **Publicar**.
+Isso garante que só o e-mail admin pode gravar; os demais só leem.
 
-1. Abra `https://seu-site/#admin` e digite a senha.
-2. Clique em **+ Adicionar** para incluir um título:
-   - **Título** (obrigatório)
-   - **Categoria**: Filmes, Séries, Desenhos ou Terror
-   - **URL da capa**: link de uma imagem (opcional)
-   - **Link do vídeo**: um arquivo `.mp4` ou um link do **YouTube** (opcional)
-   - **Descrição** (opcional)
-3. Passe o mouse sobre um card e clique em **✎** para **editar** ou **excluir**.
-4. Quando terminar, clique em **Publicar** — isso baixa um arquivo `data.json`.
+## Como usar
 
-## Como publicar para todos
+- **Visitante/usuário**: abre o site, cria conta ou entra, e assiste.
+- **Admin** (logado com `brenolimacruz64@gmail.com`): vê o selo **Admin** e o botão **+ Adicionar**.
+  Para incluir um título: **+ Adicionar** → preencha:
+  - **Título** (obrigatório)
+  - **Categoria**: Filmes, Séries, Desenhos ou Terror
+  - **URL da capa** (opcional)
+  - **Link do vídeo**: `.mp4` ou link do **YouTube** (opcional)
+  - **Descrição** (opcional)
 
-O catálogo que todo mundo vê fica no arquivo **`data.json`** na raiz do repositório.
-Depois de clicar em **Publicar** e baixar o `data.json`:
-
-1. Vá até o repositório no GitHub.
-2. Envie/substitua o arquivo `data.json` (pode arrastar o arquivo pela interface do GitHub → *Add file* → *Upload files* → *Commit*).
-3. Em ~1 minuto o site atualiza para todos os visitantes.
-
-Enquanto edita, seu trabalho fica salvo no **localStorage** do seu navegador; **Exportar/Importar** servem para fazer backup do catálogo.
+  Passe o mouse sobre um card e clique em **✎** para editar/excluir. As mudanças aparecem
+  para todos automaticamente.
 
 ## Estrutura
 
-- `index.html` — estrutura da página
+- `index.html` — página (tela de login + app)
 - `styles.css` — visual estilo Prime Video (tema escuro)
-- `app.js` — lógica (modo admin, adicionar, editar, player, publicar)
-- `data.json` — catálogo publicado que os visitantes veem
+- `app.js` — login/cadastro, catálogo (Firestore), player, admin
+- `firebase-config.js` — suas chaves do Firebase + e-mail admin
+- `firestore.rules` — regras de segurança do banco
 
-## Rodar localmente (opcional)
+## Rodar localmente
 
-É um site estático, então basta abrir o `index.html`. Se preferir um servidor local:
+Precisa de um servidor (por causa dos módulos JS), não abrir o arquivo direto:
 
 ```bash
 python3 -m http.server 8000
-# depois abra http://localhost:8000
+# abra http://localhost:8000
 ```
+Para o login com Google funcionar localmente, adicione `localhost` em
+**Authentication → Settings → Domínios autorizados**.

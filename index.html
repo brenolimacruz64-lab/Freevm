@@ -9,6 +9,35 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- Tela de login / criar conta (aparece na entrada) -->
+  <div class="auth" id="authScreen">
+    <div class="auth__box">
+      <div class="logo auth__logo">
+        <span class="logo__prime">prime</span><span class="logo__play">play</span>
+      </div>
+      <h2 id="authTitle">Entrar</h2>
+      <p class="auth__sub" id="authSub">Entre para assistir aos títulos.</p>
+      <form id="authForm" class="form">
+        <label>
+          E-mail
+          <input type="email" id="authEmail" required placeholder="voce@email.com" autocomplete="email" />
+        </label>
+        <label>
+          Senha
+          <input type="password" id="authPass" required minlength="6" placeholder="mínimo 6 caracteres" autocomplete="current-password" />
+        </label>
+        <button type="submit" class="btn btn--primary btn--lg" id="authSubmit">Entrar</button>
+      </form>
+      <div class="auth__or">ou</div>
+      <button class="btn btn--ghost btn--lg auth__google" id="googleBtn">Entrar com Google</button>
+      <p class="auth__toggle">
+        <span id="authToggleText">Ainda não tem conta?</span>
+        <a href="#" id="authToggle">Criar conta</a>
+      </p>
+      <p class="auth__error" id="authError"></p>
+    </div>
+  </div>
+
   <!-- Cabeçalho -->
   <header class="topbar">
     <div class="topbar__left">
@@ -19,11 +48,10 @@
     </div>
     <div class="topbar__right">
       <input type="search" id="searchInput" class="search" placeholder="Buscar títulos..." />
-      <span class="admin-badge admin-only" title="Você está no modo admin">Admin</span>
-      <button class="btn btn--ghost admin-only" id="importBtn" title="Importar catálogo">Importar</button>
-      <button class="btn btn--ghost admin-only" id="exportBtn" title="Exportar catálogo">Exportar</button>
-      <button class="btn btn--ghost admin-only" id="publishBtn" title="Baixar data.json para publicar no GitHub">Publicar</button>
+      <span class="admin-badge admin-only" title="Você é o administrador">Admin</span>
       <button class="btn btn--primary admin-only" id="addBtn">+ Adicionar</button>
+      <span class="user-email" id="userEmail"></span>
+      <button class="btn btn--ghost" id="logoutBtn">Sair</button>
     </div>
   </header>
 
@@ -111,8 +139,6 @@
     </div>
   </div>
 
-  <input type="file" id="importFile" accept="application/json" hidden />
-
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
