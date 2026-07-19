@@ -10,7 +10,7 @@ const CATEGORIES = ["Filmes", "Séries", "Desenhos", "Terror"];
    de edição; ela NÃO impede alguém tecnicamente avançado de ver o código.
    A proteção real é que só você publica o data.json no repositório —
    ninguém consegue alterar o catálogo que os visitantes veem. */
-const ADMIN_PASSWORD = "prime123";
+const ADMIN_PASSWORD = "Cinefy2324.";
 const ADMIN_FLAG = "primeplay.admin";
 
 /** @typedef {{id:string,title:string,category:string,poster:string,video:string,desc:string}} Title */
