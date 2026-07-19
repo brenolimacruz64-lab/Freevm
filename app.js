@@ -113,11 +113,12 @@ function cardHtml(t) {
   const poster = t.poster
     ? `<img class="card__poster" src="${escapeHtml(t.poster)}" alt="${escapeHtml(t.title)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'card__placeholder',textContent:'🎬'}))" />`
     : `<div class="card__placeholder">🎬</div>`;
+  const id = escapeHtml(t.id);
   return `
-    <div class="card" data-id="${t.id}">
+    <div class="card" data-id="${id}">
       ${poster}
       <div class="card__actions">
-        <button class="card__edit" data-edit="${t.id}" title="Editar">✎</button>
+        <button class="card__edit" data-edit="${id}" title="Editar">✎</button>
       </div>
       <div class="card__body">
         <p class="card__title">${escapeHtml(t.title)}</p>
