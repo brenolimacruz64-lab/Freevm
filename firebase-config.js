@@ -1,11 +1,9 @@
 // Configuração do Firebase.
-// Preencha os campos com "PREENCHA_..." usando o bloco firebaseConfig do console do Firebase
-// (Configurações do projeto → Seus apps → Config).
 export const firebaseConfig = {
-  apiKey: "PREENCHA_apiKey",
-  authDomain: "PREENCHA_projectId.firebaseapp.com",
-  projectId: "PREENCHA_projectId",
-  storageBucket: "PREENCHA_projectId.appspot.com",
+  apiKey: "AIzaSyASsbOkhze7SOzE2O28y-PEKjP9ZFzUHgA",
+  authDomain: "studio-6770916482-b1792.firebaseapp.com",
+  projectId: "studio-6770916482-b1792",
+  storageBucket: "studio-6770916482-b1792.firebasestorage.app",
   messagingSenderId: "895224323344",
   appId: "1:895224323344:web:ab4070064b39222b18d995",
 };
