@@ -92,9 +92,13 @@ function authErrorMessage(code) {
     "auth/wrong-password": "Senha incorreta.",
     "auth/user-not-found": "Conta não encontrada. Crie uma conta.",
     "auth/popup-closed-by-user": "Login com Google cancelado.",
-    "auth/operation-not-allowed": "Ative o método de login no console do Firebase.",
+    "auth/operation-not-allowed": "Ative o método de login (E-mail/senha ou Google) no console do Firebase.",
+    "auth/invalid-api-key": "Configuração do Firebase incompleta: preencha o firebase-config.js.",
+    "auth/api-key-not-valid.-please-pass-a-valid-api-key.": "Configuração do Firebase incompleta: preencha o firebase-config.js.",
+    "auth/unauthorized-domain": "Este domínio não está autorizado no Firebase (Authentication → Settings → Domínios autorizados).",
+    "auth/network-request-failed": "Falha de rede. Verifique a conexão.",
   };
-  return map[code] || "Não foi possível concluir. Tente novamente.";
+  return map[code] ? map[code] : `Não foi possível concluir (${code || "erro desconhecido"}).`;
 }
 
 /* ---------- Autenticação ---------- */
