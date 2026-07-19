@@ -63,9 +63,8 @@ async function fetchPublished() {
 let isAdmin = false;
 
 function detectAdmin() {
-  const wants = location.hash.toLowerCase().includes("admin");
-  if (!wants) return false;
   if (sessionStorage.getItem(ADMIN_FLAG) === "1") return true;
+  if (!location.hash.toLowerCase().includes("admin")) return false;
   const pass = prompt("Senha do modo admin:");
   if (pass === ADMIN_PASSWORD) {
     sessionStorage.setItem(ADMIN_FLAG, "1");
@@ -73,6 +72,24 @@ function detectAdmin() {
   }
   if (pass !== null) alert("Senha incorreta. Você continua no modo visitante.");
   return false;
+}
+
+/* Liga o modo admin a partir do botão do menu (pede senha e recarrega). */
+function activateAdmin() {
+  const pass = prompt("Senha do modo admin:");
+  if (pass === null) return;
+  if (pass === ADMIN_PASSWORD) {
+    sessionStorage.setItem(ADMIN_FLAG, "1");
+    location.reload();
+  } else {
+    alert("Senha incorreta.");
+  }
+}
+
+/* Sai do modo admin. */
+function deactivateAdmin() {
+  sessionStorage.removeItem(ADMIN_FLAG);
+  location.reload();
 }
 
 let catalog = [];
@@ -157,6 +174,14 @@ function renderNav() {
       render();
     });
   });
+
+  // Botão para ligar/desligar o modo admin (fica no fim do menu, depois de "Terror").
+  const adminToggle = document.createElement("button");
+  adminToggle.className = "nav__admin";
+  adminToggle.textContent = isAdmin ? "Sair do admin" : "🔒 Admin";
+  adminToggle.title = isAdmin ? "Sair do modo admin" : "Entrar no modo admin";
+  adminToggle.addEventListener("click", () => (isAdmin ? deactivateAdmin() : activateAdmin()));
+  el.nav.appendChild(adminToggle);
 }
 
 let activeCategory = "";
