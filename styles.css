@@ -31,54 +31,6 @@ body:not(.is-admin) .card__actions { display: none; }
   border-radius: 20px;
 }
 
-.user-email { color: var(--text-dim); font-size: 13px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* Enquanto não logado, esconde o app e mostra só a tela de login */
-body:not(.is-authed) .topbar,
-body:not(.is-authed) .hero,
-body:not(.is-authed) .content,
-body:not(.is-authed) .empty,
-body:not(.is-authed) .footer { display: none !important; }
-
-/* Tela de autenticação */
-.auth {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background:
-    linear-gradient(180deg, rgba(15,23,30,0.92), rgba(15,23,30,0.98)),
-    radial-gradient(circle at 70% 20%, #1c3a4d, #0f171e 70%);
-}
-.auth[hidden] { display: none; }
-.auth__box {
-  width: 100%;
-  max-width: 400px;
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 32px 28px;
-  box-shadow: var(--shadow);
-}
-.auth__logo { font-size: 30px; font-weight: 700; text-align: center; margin-bottom: 14px; }
-.auth__box h2 { margin: 0 0 4px; text-align: center; }
-.auth__sub { margin: 0 0 20px; text-align: center; color: var(--text-dim); font-size: 14px; }
-.auth__box .form { gap: 16px; margin-top: 0; }
-.auth__box .btn--lg { width: 100%; }
-.auth__or { text-align: center; color: var(--text-dim); font-size: 13px; margin: 16px 0; position: relative; }
-.auth__or::before, .auth__or::after {
-  content: ""; position: absolute; top: 50%; width: 40%; height: 1px; background: var(--border);
-}
-.auth__or::before { left: 0; }
-.auth__or::after { right: 0; }
-.auth__google { width: 100%; }
-.auth__toggle { text-align: center; font-size: 14px; color: var(--text-dim); margin: 20px 0 0; }
-.auth__toggle a { color: var(--prime); font-weight: 600; }
-.auth__error { color: var(--danger); font-size: 14px; text-align: center; min-height: 20px; margin: 12px 0 0; }
-
 body {
   margin: 0;
   font-family: "Poppins", system-ui, sans-serif;

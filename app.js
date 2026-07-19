@@ -1,47 +1,84 @@
-/* PrimePlay — catálogo estilo Prime Video com contas de usuário (Firebase).
-   - Ao entrar, mostra a tela de login/criar conta.
-   - Qualquer usuário logado assiste aos títulos.
-   - Somente ADMIN_EMAIL pode adicionar/editar/excluir. */
+/* PrimePlay — catálogo pessoal estilo Prime Video.
+   O catálogo começa vazio; o usuário adiciona os títulos.
+   Os dados ficam salvos no localStorage do navegador. */
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import {
-  getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
-  signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup,
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import {
-  getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { firebaseConfig, ADMIN_EMAIL } from "./firebase-config.js";
-
+const STORAGE_KEY = "primeplay.catalog.v1";
 const CATEGORIES = ["Filmes", "Séries", "Desenhos", "Terror"];
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+/* Senha do modo admin. Troque este valor pela senha que você quiser.
+   Observação: por ser um site estático, esta senha só esconde os controles
+   de edição; ela NÃO impede alguém tecnicamente avançado de ver o código.
+   A proteção real é que só você publica o data.json no repositório —
+   ninguém consegue alterar o catálogo que os visitantes veem. */
+const ADMIN_PASSWORD = "prime123";
+const ADMIN_FLAG = "primeplay.admin";
 
 /** @typedef {{id:string,title:string,category:string,poster:string,video:string,desc:string}} Title */
-/** @type {Title[]} */
-let catalog = [];
+
+/** @returns {Title[]} */
+function loadCatalog() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+/** @param {Title[]} catalog */
+function saveCatalog(catalog) {
+  if (!isAdmin) return; // visitantes não alteram o catálogo publicado
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(catalog));
+}
+
+/** Normaliza uma lista de títulos vinda de JSON externo. */
+function normalize(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((t) => t && t.title)
+    .map((t) => ({
+      id: String(t.id || uid()),
+      title: String(t.title),
+      category: CATEGORIES.includes(t.category) ? t.category : "Filmes",
+      poster: t.poster || "",
+      video: t.video || "",
+      desc: t.desc || "",
+    }));
+}
+
+/** Busca o catálogo publicado (data.json) no servidor. */
+async function fetchPublished() {
+  try {
+    const res = await fetch("data.json", { cache: "no-store" });
+    if (!res.ok) return [];
+    return normalize(await res.json());
+  } catch {
+    return [];
+  }
+}
+
+/* Modo admin: ativado por #admin na URL + senha. Fica lembrado na aba (sessionStorage). */
 let isAdmin = false;
-let activeCategory = "";
+
+function detectAdmin() {
+  const wants = location.hash.toLowerCase().includes("admin");
+  if (!wants) return false;
+  if (sessionStorage.getItem(ADMIN_FLAG) === "1") return true;
+  const pass = prompt("Senha do modo admin:");
+  if (pass === ADMIN_PASSWORD) {
+    sessionStorage.setItem(ADMIN_FLAG, "1");
+    return true;
+  }
+  if (pass !== null) alert("Senha incorreta. Você continua no modo visitante.");
+  return false;
+}
+
+let catalog = [];
 
 /* ---------- Elementos ---------- */
 const el = {
-  // auth
-  authScreen: document.getElementById("authScreen"),
-  authForm: document.getElementById("authForm"),
-  authEmail: document.getElementById("authEmail"),
-  authPass: document.getElementById("authPass"),
-  authSubmit: document.getElementById("authSubmit"),
-  authTitle: document.getElementById("authTitle"),
-  authSub: document.getElementById("authSub"),
-  authToggle: document.getElementById("authToggle"),
-  authToggleText: document.getElementById("authToggleText"),
-  authError: document.getElementById("authError"),
-  googleBtn: document.getElementById("googleBtn"),
-  logoutBtn: document.getElementById("logoutBtn"),
-  userEmail: document.getElementById("userEmail"),
-  // app
   nav: document.getElementById("nav"),
   content: document.getElementById("content"),
   empty: document.getElementById("empty"),
@@ -49,6 +86,10 @@ const el = {
   addBtn: document.getElementById("addBtn"),
   heroAddBtn: document.getElementById("heroAddBtn"),
   emptyAddBtn: document.getElementById("emptyAddBtn"),
+  exportBtn: document.getElementById("exportBtn"),
+  importBtn: document.getElementById("importBtn"),
+  publishBtn: document.getElementById("publishBtn"),
+  importFile: document.getElementById("importFile"),
   // form modal
   formModal: document.getElementById("formModal"),
   formTitle: document.getElementById("formTitle"),
@@ -68,171 +109,63 @@ const el = {
 };
 
 /* ---------- Utilidades ---------- */
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   })[c]);
 }
 
+/** Converte um link do YouTube em URL de embed; senão retorna null. */
 function youtubeEmbed(url) {
   if (!url) return null;
-  const m = String(url).match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([\w-]{11})/
-  );
-  return m ? `https://www.youtube.com/embed/${m[1]}` : null;
-}
-
-function authErrorMessage(code) {
-  const map = {
-    "auth/invalid-email": "E-mail inválido.",
-    "auth/missing-password": "Digite a senha.",
-    "auth/weak-password": "A senha precisa ter ao menos 6 caracteres.",
-    "auth/email-already-in-use": "Este e-mail já tem conta. Tente entrar.",
-    "auth/invalid-credential": "E-mail ou senha incorretos.",
-    "auth/wrong-password": "Senha incorreta.",
-    "auth/user-not-found": "Conta não encontrada. Crie uma conta.",
-    "auth/popup-closed-by-user": "Login com Google cancelado.",
-    "auth/operation-not-allowed": "Ative o método de login (E-mail/senha ou Google) no console do Firebase.",
-    "auth/invalid-api-key": "Configuração do Firebase incompleta: preencha o firebase-config.js.",
-    "auth/api-key-not-valid.-please-pass-a-valid-api-key.": "Configuração do Firebase incompleta: preencha o firebase-config.js.",
-    "auth/unauthorized-domain": "Este domínio não está autorizado no Firebase (Authentication → Settings → Domínios autorizados).",
-    "auth/network-request-failed": "Falha de rede. Verifique a conexão.",
-  };
-  return map[code] ? map[code] : `Não foi possível concluir (${code || "erro desconhecido"}).`;
-}
-
-/* ---------- Autenticação ---------- */
-let signupMode = false;
-
-function renderAuthMode() {
-  if (signupMode) {
-    el.authTitle.textContent = "Criar conta";
-    el.authSub.textContent = "Crie sua conta para assistir aos títulos.";
-    el.authSubmit.textContent = "Criar conta";
-    el.authToggleText.textContent = "Já tem conta?";
-    el.authToggle.textContent = "Entrar";
-    el.authPass.autocomplete = "new-password";
-  } else {
-    el.authTitle.textContent = "Entrar";
-    el.authSub.textContent = "Entre para assistir aos títulos.";
-    el.authSubmit.textContent = "Entrar";
-    el.authToggleText.textContent = "Ainda não tem conta?";
-    el.authToggle.textContent = "Criar conta";
-    el.authPass.autocomplete = "current-password";
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([\w-]{11})/,
+  ];
+  for (const re of patterns) {
+    const m = url.match(re);
+    if (m) return `https://www.youtube.com/embed/${m[1]}`;
   }
-  el.authError.textContent = "";
-}
-
-el.authToggle.addEventListener("click", (e) => {
-  e.preventDefault();
-  signupMode = !signupMode;
-  renderAuthMode();
-});
-
-el.authForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  el.authError.textContent = "";
-  el.authSubmit.disabled = true;
-  const email = el.authEmail.value.trim();
-  const pass = el.authPass.value;
-  try {
-    if (signupMode) {
-      await createUserWithEmailAndPassword(auth, email, pass);
-    } else {
-      await signInWithEmailAndPassword(auth, email, pass);
-    }
-  } catch (err) {
-    el.authError.textContent = authErrorMessage(err.code);
-  } finally {
-    el.authSubmit.disabled = false;
-  }
-});
-
-el.googleBtn.addEventListener("click", async () => {
-  el.authError.textContent = "";
-  try {
-    await signInWithPopup(auth, new GoogleAuthProvider());
-  } catch (err) {
-    el.authError.textContent = authErrorMessage(err.code);
-  }
-});
-
-el.logoutBtn.addEventListener("click", () => signOut(auth));
-
-onAuthStateChanged(auth, (user) => {
-  const authed = !!user;
-  isAdmin = authed && user.email === ADMIN_EMAIL;
-  document.body.classList.toggle("is-authed", authed);
-  document.body.classList.toggle("is-admin", isAdmin);
-  el.authScreen.hidden = authed;
-  if (authed) {
-    el.userEmail.textContent = user.email;
-    el.authForm.reset();
-    subscribeCatalog();
-  } else {
-    el.userEmail.textContent = "";
-    catalog = [];
-    render();
-  }
-});
-
-/* ---------- Catálogo (Firestore) ---------- */
-let unsubscribe = null;
-
-function subscribeCatalog() {
-  if (unsubscribe) return;
-  unsubscribe = onSnapshot(
-    collection(db, "titles"),
-    (snap) => {
-      catalog = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      render();
-    },
-    (err) => {
-      el.content.innerHTML = `<p style="color:var(--danger);padding:20px 0;">Erro ao carregar o catálogo: ${escapeHtml(err.message)}</p>`;
-    }
-  );
-}
-
-async function saveTitle(id, data) {
-  if (!isAdmin) return;
-  if (id) {
-    await updateDoc(doc(db, "titles", id), data);
-  } else {
-    await addDoc(collection(db, "titles"), { ...data, createdAt: serverTimestamp() });
-  }
-}
-
-async function removeTitle(id) {
-  if (!isAdmin) return;
-  await deleteDoc(doc(db, "titles", id));
+  return null;
 }
 
 /* ---------- Renderização ---------- */
 function renderNav() {
   el.nav.innerHTML = "";
-  const items = [{ cat: "", label: "Início" }, ...CATEGORIES.map((c) => ({ cat: c, label: c }))];
-  items.forEach(({ cat, label }, i) => {
+  const all = document.createElement("a");
+  all.href = "#";
+  all.textContent = "Início";
+  all.className = "active";
+  all.dataset.cat = "";
+  el.nav.appendChild(all);
+  CATEGORIES.forEach((cat) => {
     const a = document.createElement("a");
     a.href = "#";
-    a.textContent = label;
+    a.textContent = cat;
     a.dataset.cat = cat;
-    if (i === 0) a.classList.add("active");
+    el.nav.appendChild(a);
+  });
+  el.nav.querySelectorAll("a").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
       el.nav.querySelectorAll("a").forEach((x) => x.classList.remove("active"));
       a.classList.add("active");
-      activeCategory = cat;
+      activeCategory = a.dataset.cat;
       render();
     });
-    el.nav.appendChild(a);
   });
 }
 
+let activeCategory = "";
+
 function cardHtml(t) {
-  const id = escapeHtml(t.id);
   const poster = t.poster
     ? `<img class="card__poster" src="${escapeHtml(t.poster)}" alt="${escapeHtml(t.title)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'card__placeholder',textContent:'🎬'}))" />`
     : `<div class="card__placeholder">🎬</div>`;
+  const id = escapeHtml(t.id);
   return `
     <div class="card" data-id="${id}">
       ${poster}
@@ -248,7 +181,7 @@ function cardHtml(t) {
 function render() {
   const query = el.search.value.trim().toLowerCase();
   const filtered = catalog.filter((t) => {
-    const matchQuery = !query || (t.title || "").toLowerCase().includes(query);
+    const matchQuery = !query || t.title.toLowerCase().includes(query);
     const matchCat = !activeCategory || t.category === activeCategory;
     return matchQuery && matchCat;
   });
@@ -298,7 +231,7 @@ function openPlayer(id) {
   } else if (t.video) {
     inner = `<video src="${escapeHtml(t.video)}" controls autoplay></video>`;
   } else {
-    inner = `<div class="player__empty">Nenhum link de vídeo cadastrado para este título.</div>`;
+    inner = `<div class="player__empty">Nenhum link de vídeo cadastrado para este título.<br/>Edite o título e adicione um link (.mp4 ou YouTube).</div>`;
   }
   el.player.innerHTML = inner;
   el.playerTitle.textContent = t.title;
@@ -340,7 +273,7 @@ function closeForm() {
   el.formModal.hidden = true;
 }
 
-el.form.addEventListener("submit", async (e) => {
+el.form.addEventListener("submit", (e) => {
   e.preventDefault();
   const id = el.fId.value;
   const data = {
@@ -351,29 +284,74 @@ el.form.addEventListener("submit", async (e) => {
     desc: el.fDesc.value.trim(),
   };
   if (!data.title) return;
-  try {
-    await saveTitle(id, data);
-    closeForm();
-  } catch (err) {
-    alert("Não foi possível salvar: " + err.message);
+  if (id) {
+    const t = catalog.find((x) => x.id === id);
+    if (t) Object.assign(t, data);
+  } else {
+    catalog.push({ id: uid(), ...data });
   }
+  saveCatalog(catalog);
+  closeForm();
+  render();
 });
 
-el.deleteBtn.addEventListener("click", async () => {
+el.deleteBtn.addEventListener("click", () => {
   const id = el.fId.value;
   if (!id) return;
   if (!confirm("Excluir este título?")) return;
-  try {
-    await removeTitle(id);
-    closeForm();
-  } catch (err) {
-    alert("Não foi possível excluir: " + err.message);
-  }
+  catalog = catalog.filter((x) => x.id !== id);
+  saveCatalog(catalog);
+  closeForm();
+  render();
 });
 
-/* ---------- Modais ---------- */
+/* ---------- Importar / Exportar ---------- */
+el.exportBtn.addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(catalog, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "primeplay-catalogo.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+el.importBtn.addEventListener("click", () => el.importFile.click());
+el.importFile.addEventListener("change", async () => {
+  const file = el.importFile.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!Array.isArray(data)) throw new Error("Formato inválido");
+    catalog = normalize(data);
+    saveCatalog(catalog);
+    render();
+    alert(`Catálogo importado: ${catalog.length} título(s).`);
+  } catch (err) {
+    alert("Não foi possível importar o arquivo: " + err.message);
+  }
+  el.importFile.value = "";
+});
+
+/* ---------- Publicar (baixa data.json para enviar ao GitHub) ---------- */
+el.publishBtn.addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(catalog, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "data.json";
+  a.click();
+  URL.revokeObjectURL(url);
+  alert("Arquivo data.json baixado.\n\nAgora envie/substitua esse arquivo na raiz do seu repositório no GitHub para publicar o catálogo para todos.");
+});
+
+/* ---------- Fechamento de modais ---------- */
 document.querySelectorAll("[data-close]").forEach((btn) => {
-  btn.addEventListener("click", () => { closeForm(); closePlayer(); });
+  btn.addEventListener("click", () => {
+    closeForm();
+    closePlayer();
+  });
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") { closeForm(); closePlayer(); }
@@ -386,6 +364,23 @@ el.emptyAddBtn.addEventListener("click", () => openForm());
 el.search.addEventListener("input", render);
 
 /* ---------- Início ---------- */
-renderAuthMode();
-renderNav();
-render();
+async function init() {
+  isAdmin = detectAdmin();
+  document.body.classList.toggle("is-admin", isAdmin);
+
+  const published = await fetchPublished();
+  if (isAdmin) {
+    // Admin trabalha sobre uma cópia local; começa a partir do que já foi publicado.
+    const local = loadCatalog();
+    catalog = local.length ? local : published;
+    saveCatalog(catalog);
+  } else {
+    // Visitante vê apenas o catálogo publicado.
+    catalog = published;
+  }
+
+  renderNav();
+  render();
+}
+
+init();
