@@ -5,6 +5,14 @@
 const STORAGE_KEY = "primeplay.catalog.v1";
 const CATEGORIES = ["Filmes", "Séries", "Desenhos", "Terror"];
 
+/* Senha do modo admin. Troque este valor pela senha que você quiser.
+   Observação: por ser um site estático, esta senha só esconde os controles
+   de edição; ela NÃO impede alguém tecnicamente avançado de ver o código.
+   A proteção real é que só você publica o data.json no repositório —
+   ninguém consegue alterar o catálogo que os visitantes veem. */
+const ADMIN_PASSWORD = "prime123";
+const ADMIN_FLAG = "primeplay.admin";
+
 /** @typedef {{id:string,title:string,category:string,poster:string,video:string,desc:string}} Title */
 
 /** @returns {Title[]} */
@@ -21,10 +29,53 @@ function loadCatalog() {
 
 /** @param {Title[]} catalog */
 function saveCatalog(catalog) {
+  if (!isAdmin) return; // visitantes não alteram o catálogo publicado
   localStorage.setItem(STORAGE_KEY, JSON.stringify(catalog));
 }
 
-let catalog = loadCatalog();
+/** Normaliza uma lista de títulos vinda de JSON externo. */
+function normalize(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((t) => t && t.title)
+    .map((t) => ({
+      id: String(t.id || uid()),
+      title: String(t.title),
+      category: CATEGORIES.includes(t.category) ? t.category : "Filmes",
+      poster: t.poster || "",
+      video: t.video || "",
+      desc: t.desc || "",
+    }));
+}
+
+/** Busca o catálogo publicado (data.json) no servidor. */
+async function fetchPublished() {
+  try {
+    const res = await fetch("data.json", { cache: "no-store" });
+    if (!res.ok) return [];
+    return normalize(await res.json());
+  } catch {
+    return [];
+  }
+}
+
+/* Modo admin: ativado por #admin na URL + senha. Fica lembrado na aba (sessionStorage). */
+let isAdmin = false;
+
+function detectAdmin() {
+  const wants = location.hash.toLowerCase().includes("admin");
+  if (!wants) return false;
+  if (sessionStorage.getItem(ADMIN_FLAG) === "1") return true;
+  const pass = prompt("Senha do modo admin:");
+  if (pass === ADMIN_PASSWORD) {
+    sessionStorage.setItem(ADMIN_FLAG, "1");
+    return true;
+  }
+  if (pass !== null) alert("Senha incorreta. Você continua no modo visitante.");
+  return false;
+}
+
+let catalog = [];
 
 /* ---------- Elementos ---------- */
 const el = {
@@ -37,6 +88,7 @@ const el = {
   emptyAddBtn: document.getElementById("emptyAddBtn"),
   exportBtn: document.getElementById("exportBtn"),
   importBtn: document.getElementById("importBtn"),
+  publishBtn: document.getElementById("publishBtn"),
   importFile: document.getElementById("importFile"),
   // form modal
   formModal: document.getElementById("formModal"),
@@ -194,6 +246,7 @@ function closePlayer() {
 
 /* ---------- Formulário ---------- */
 function openForm(id) {
+  if (!isAdmin) return;
   el.form.reset();
   if (id) {
     const t = catalog.find((x) => x.id === id);
@@ -271,16 +324,7 @@ el.importFile.addEventListener("change", async () => {
     const text = await file.text();
     const data = JSON.parse(text);
     if (!Array.isArray(data)) throw new Error("Formato inválido");
-    catalog = data
-      .filter((t) => t && t.title)
-      .map((t) => ({
-        id: t.id || uid(),
-        title: String(t.title),
-        category: CATEGORIES.includes(t.category) ? t.category : "Filmes",
-        poster: t.poster || "",
-        video: t.video || "",
-        desc: t.desc || "",
-      }));
+    catalog = normalize(data);
     saveCatalog(catalog);
     render();
     alert(`Catálogo importado: ${catalog.length} título(s).`);
@@ -288,6 +332,18 @@ el.importFile.addEventListener("change", async () => {
     alert("Não foi possível importar o arquivo: " + err.message);
   }
   el.importFile.value = "";
+});
+
+/* ---------- Publicar (baixa data.json para enviar ao GitHub) ---------- */
+el.publishBtn.addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(catalog, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "data.json";
+  a.click();
+  URL.revokeObjectURL(url);
+  alert("Arquivo data.json baixado.\n\nAgora envie/substitua esse arquivo na raiz do seu repositório no GitHub para publicar o catálogo para todos.");
 });
 
 /* ---------- Fechamento de modais ---------- */
@@ -308,5 +364,23 @@ el.emptyAddBtn.addEventListener("click", () => openForm());
 el.search.addEventListener("input", render);
 
 /* ---------- Início ---------- */
-renderNav();
-render();
+async function init() {
+  isAdmin = detectAdmin();
+  document.body.classList.toggle("is-admin", isAdmin);
+
+  const published = await fetchPublished();
+  if (isAdmin) {
+    // Admin trabalha sobre uma cópia local; começa a partir do que já foi publicado.
+    const local = loadCatalog();
+    catalog = local.length ? local : published;
+    saveCatalog(catalog);
+  } else {
+    // Visitante vê apenas o catálogo publicado.
+    catalog = published;
+  }
+
+  renderNav();
+  render();
+}
+
+init();

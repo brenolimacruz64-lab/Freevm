@@ -14,6 +14,23 @@
 
 * { box-sizing: border-box; }
 
+/* Controles visíveis só no modo admin */
+.admin-only { display: none !important; }
+body.is-admin .admin-only { display: revert !important; }
+body.is-admin .hero__actions.admin-only { display: flex !important; }
+body.is-admin .empty__visitor { display: none; }
+body:not(.is-admin) .empty__admin { display: none; }
+body:not(.is-admin) .card__actions { display: none; }
+
+.admin-badge {
+  background: var(--prime);
+  color: #04222e;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
 body {
   margin: 0;
   font-family: "Poppins", system-ui, sans-serif;

@@ -19,9 +19,11 @@
     </div>
     <div class="topbar__right">
       <input type="search" id="searchInput" class="search" placeholder="Buscar títulos..." />
-      <button class="btn btn--ghost" id="importBtn" title="Importar catálogo">Importar</button>
-      <button class="btn btn--ghost" id="exportBtn" title="Exportar catálogo">Exportar</button>
-      <button class="btn btn--primary" id="addBtn">+ Adicionar</button>
+      <span class="admin-badge admin-only" title="Você está no modo admin">Admin</span>
+      <button class="btn btn--ghost admin-only" id="importBtn" title="Importar catálogo">Importar</button>
+      <button class="btn btn--ghost admin-only" id="exportBtn" title="Exportar catálogo">Exportar</button>
+      <button class="btn btn--ghost admin-only" id="publishBtn" title="Baixar data.json para publicar no GitHub">Publicar</button>
+      <button class="btn btn--primary admin-only" id="addBtn">+ Adicionar</button>
     </div>
   </header>
 
@@ -30,9 +32,9 @@
     <div class="hero__bg" id="heroBg"></div>
     <div class="hero__overlay"></div>
     <div class="hero__content" id="heroContent">
-      <h1 class="hero__title">Seu catálogo, do seu jeito</h1>
-      <p class="hero__desc">Adicione seus filmes, séries, desenhos e terror. O catálogo começa vazio — clique em <strong>+ Adicionar</strong> para incluir seus títulos.</p>
-      <div class="hero__actions">
+      <h1 class="hero__title">Filmes, Séries, Desenhos e Terror</h1>
+      <p class="hero__desc">Escolha um título e aperte o play. Bom filme!</p>
+      <div class="hero__actions admin-only">
         <button class="btn btn--primary btn--lg" id="heroAddBtn">+ Adicionar título</button>
       </div>
     </div>
@@ -44,13 +46,14 @@
   <!-- Estado vazio -->
   <div class="empty" id="empty" hidden>
     <div class="empty__icon">🎬</div>
-    <h2>Nenhum título ainda</h2>
-    <p>Seu catálogo está vazio. Clique em <strong>+ Adicionar</strong> para incluir filmes, séries, desenhos ou terror.</p>
-    <button class="btn btn--primary btn--lg" id="emptyAddBtn">+ Adicionar título</button>
+    <h2>Em breve novos títulos</h2>
+    <p class="empty__visitor">O catálogo está sendo preparado. Volte em breve!</p>
+    <p class="empty__admin admin-only">Catálogo vazio. Clique em <strong>+ Adicionar</strong> para incluir filmes, séries, desenhos ou terror.</p>
+    <button class="btn btn--primary btn--lg admin-only" id="emptyAddBtn">+ Adicionar título</button>
   </div>
 
   <footer class="footer">
-    <p>PrimePlay — catálogo pessoal. Os títulos são adicionados e armazenados apenas neste navegador.</p>
+    <p>PrimePlay — seu catálogo de filmes, séries, desenhos e terror.</p>
   </footer>
 
   <!-- Modal: player -->
